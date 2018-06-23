@@ -61,32 +61,130 @@ def CRPS(X_f, X_o):
     
     return np.mean(res)
 
+def reldiag_init(X_min, n_bins=10, min_count=10):
+    """Initialize a reliability diagram object. The method for computing the 
+    reliability diagram is based on
+    
+    J. Brocker and L. A. Smith. Increasing the Reliability of Reliability Diagrams, 
+    Weather and Forecasting, 22(3), 651-661, 2007.
+    
+    Parameters
+    ----------
+    X_min : float
+      Precipitation intensity threshold for yes/no prediction.
+    n_bins : int
+        Number of bins to use in the reliability diagram.
+    min_count : int
+      Minimum number of samples required for each bin. A zero value is assigned 
+      if the number of samples in a bin is smaller than bin_count.
+    
+    Returns
+    -------
+    out : dict
+      The reliability diagram object.
+    """
+    reldiag = {}
+    
+    reldiag["X_min"]       = X_min
+    reldiag["bin_edges"]   = np.linspace(-1e-6, 1+1e-6, n_bins+1)
+    reldiag["n_bins"]      = n_bins
+    reldiag["X_sum"]       = np.zeros(n_bins)
+    reldiag["Y_sum"]       = np.zeros(n_bins, dtype=int)
+    reldiag["num_idx"]     = np.zeros(n_bins, dtype=int)
+    reldiag["sample_size"] = np.zeros(n_bins, dtype=int)
+    reldiag["min_count"]   = min_count
+    
+    return reldiag
+
+def reldiag_accum(reldiag, P_f, X_o):
+    """Accumulate the given probability-observation pairs into the reliability 
+    diagram.
+    
+    Parameters
+    ----------
+    reldiag : dict
+      A reliability diagram object created with reldiag_init.
+    P_f : array-like
+      Forecast probabilities for exceeding the intensity threshold specified 
+      in the reliability diagram object.
+    X_o : array-like
+      Observed values.
+    """
+    mask = np.logical_and(np.isfinite(P_f), np.isfinite(X_o))
+    
+    P_f = P_f[mask]
+    X_o = X_o[mask]
+    
+    idx = np.digitize(P_f, reldiag["bin_edges"], right=True)
+    
+    x       = []
+    y       = []
+    num_idx = []
+    ss      = []
+    
+    for k in xrange(1, len(reldiag["bin_edges"])):
+        I_k = np.where(idx == k)[0]
+        if len(I_k) >= reldiag["min_count"]:
+            y.append(np.sum(X_o[I_k] >= reldiag["X_min"]))
+            x.append(np.sum(P_f[I_k]))
+            num_idx.append(len(I_k))
+            ss.append(len(I_k))
+        else:
+            y.append(0.0)
+            x.append(0.0)
+            num_idx.append(0.0)
+            ss.append(0)
+    
+    reldiag["X_sum"]       += np.array(x)
+    reldiag["Y_sum"]       += np.array(y, dtype=int)
+    reldiag["num_idx"]     += np.array(num_idx, dtype=int)
+    reldiag["sample_size"] += ss
+
+def reldiag_compute(reldiag):
+    """Compute the x- and y- coordinates of the points in the reliability diagram.
+    
+    Parameters
+    ----------
+    reldiag : dict
+      A reliability diagram object created with reldiag_init.
+    
+    Returns
+    -------
+    out : tuple
+      Two-element tuple containing the x- and y-coordinates of the points in 
+      the reliability diagram.
+    """
+    f = 1.0 * reldiag["Y_sum"] / reldiag["num_idx"]
+    r = 1.0 * reldiag["X_sum"] / reldiag["num_idx"]
+    
+    return r,f
+
 def ROC_curve_init(X_min, n_prob_thrs=10):
-  """Initialize a ROC curve object.
-  
-  Parameters
-  ----------
-  X_min : float
-    Precipitation intensity value for yes/no prediction.
-  n_prob_thrs : int
-    The number of probability thresholds to use. The interval [0,1] is divided 
-    into n_prob_thrs evenly spaced values.
-  
-  Returns
-  -------
-  out : dict
-    The ROC curve object.
-  """
-  ROC = {}
-  
-  ROC["X_min"]        = X_min
-  ROC["hits"]         = np.zeros(n_prob_thrs, dtype=int)
-  ROC["misses"]       = np.zeros(n_prob_thrs, dtype=int)
-  ROC["false_alarms"] = np.zeros(n_prob_thrs, dtype=int)
-  ROC["corr_neg"]     = np.zeros(n_prob_thrs, dtype=int)
-  ROC["prob_thrs"]    = np.linspace(0.0, 1.0, n_prob_thrs)
-  
-  return ROC
+    """Initialize a ROC curve object.
+    
+    Parameters
+    ----------
+    X_min : float
+      Precipitation intensity threshold for yes/no prediction.
+    n_prob_thrs : int
+      The number of probability thresholds to use. The interval [0,1] is divided 
+      into n_prob_thrs evenly spaced values.
+    
+    Returns
+    -------
+    out : dict
+      The ROC curve object.
+    """
+    ROC = {}
+    
+    ROC["X_min"]        = X_min
+    ROC["hits"]         = np.zeros(n_prob_thrs, dtype=int)
+    ROC["misses"]       = np.zeros(n_prob_thrs, dtype=int)
+    ROC["false_alarms"] = np.zeros(n_prob_thrs, dtype=int)
+    ROC["corr_neg"]     = np.zeros(n_prob_thrs, dtype=int)
+    ROC["prob_thrs"]    = np.linspace(0.0, 1.0, n_prob_thrs)
+    
+    return ROC
 
 def ROC_curve_accum(ROC, P_f, X_o):
     """Accumulate the given probability-observation pairs into the given ROC 
