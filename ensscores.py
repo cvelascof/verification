@@ -49,7 +49,7 @@ def rankhist_accum(rankhist, X_f, X_o):
     
     # handle ties, where the verifying observation lies between ensemble members 
     # having the same value
-    for i,j in enumerate(idx):
+    for i in range(len(idx)):
         i_eq = np.where(X_f[i, :] == X_o)[0]
         if len(i_eq) > 1:
             idx[i] = np.random.randint(low=i_eq[0]+1, high=i_eq[-1]+1)
