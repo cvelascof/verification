@@ -35,7 +35,7 @@ def CRPS(X_f, X_o):
     alpha = np.zeros((n, m+1))
     beta  = np.zeros((n, m+1))
     
-    for i in xrange(1, m):
+    for i in range(1, m):
         mask = X_o > X_f[:, i]
         alpha[mask, i] = X_f[mask, i] - X_f[mask, i-1]
         beta[mask, i]  = 0.0
@@ -122,7 +122,7 @@ def reldiag_accum(reldiag, P_f, X_o):
     num_idx = []
     ss      = []
     
-    for k in xrange(1, len(reldiag["bin_edges"])):
+    for k in range(1, len(reldiag["bin_edges"])):
         I_k = np.where(idx == k)[0]
         if len(I_k) >= reldiag["min_count"]:
             y.append(np.sum(X_o[I_k] >= reldiag["X_min"]))
@@ -232,7 +232,7 @@ def ROC_curve_compute(ROC, compute_area=False):
     POD_vals  = []
     POFD_vals = []
     
-    for i in xrange(len(ROC["prob_thrs"])):
+    for i in range(len(ROC["prob_thrs"])):
         POD_vals.append(1.0*ROC["hits"][i] / (ROC["hits"][i] + ROC["misses"][i]))
         POFD_vals.append(1.0*ROC["false_alarms"][i] / \
                          (ROC["corr_neg"][i] + ROC["false_alarms"][i]))
